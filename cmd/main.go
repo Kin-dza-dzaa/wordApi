@@ -4,14 +4,16 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
 	config "github.com/Kin-dza-dzaa/wordApi/configs"
 	"github.com/Kin-dza-dzaa/wordApi/internal/logger"
 	"github.com/Kin-dza-dzaa/wordApi/pkg/handlers"
-	"github.com/Kin-dza-dzaa/wordApi/pkg/repository"
-	service "github.com/Kin-dza-dzaa/wordApi/pkg/servise"
+	"github.com/Kin-dza-dzaa/wordApi/pkg/repositories"
+	"github.com/Kin-dza-dzaa/wordApi/pkg/servise"
 )
 
 func main() {
+	handlers.StopHTTPServerChan = make(chan bool)
 	w, err := logger.GetWriter()
 	if err != nil {
 		log.Fatal(err)
@@ -22,14 +24,28 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	conn, err := repository.Connect(config.DbUrl)
+	conn, err := repositories.Connect(config.DbUrl)
 	if err != nil {
 		log.Fatal(err)
 	}
-	repository := repository.NewRepository(conn)
+	defer conn.Close(context.Background())
+	repository := repositories.NewRepository(conn)
 	service := service.NewService(repository, config)
 	handler := handlers.NewHandlers(service)
 	handler.InitilizeHandlers()
-	http.ListenAndServe(":8080", handler.Router)
-	defer conn.Close(context.Background())
+	srv := &http.Server{
+		Handler: handler.Router,
+		Addr:    "127.0.0.1:8000",
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
+	}
+	go func() {
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatalf("ListenAndServe(): %v", err)
+		}
+	}()
+	<-handlers.StopHTTPServerChan
+	if err := srv.Shutdown(context.TODO()); err != nil {
+		panic(err) // failure/timeout shutting down the server gracefully
+	}
 }

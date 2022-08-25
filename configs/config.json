@@ -1,4 +1,5 @@
 {   
     "dburl": "postgres://wordapi:12345@localhost:5432/wordapi",
-    "secure_string": "FZQBijXIcFYSGexUiCmRWBIxNzfGLtEv"
+    "secure_string": "FZQBijXIcFYSGexUiCmRWBIxNzfGLtEv",
+    "password_string": "!\"#$%&\\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ^_`abcdefghijklmnopqrstuvwxyz"
 }

@@ -5,17 +5,22 @@ import (
 )
 
 type Config struct {
-	DbUrl string
+	DbUrl     string
 	JWTString string
+	Password  string
 }
 
 func ReadConfig() (*Config, error) {
-	var config *Config = &Config{}
+	var config Config
+	viper.SetConfigName("config")
+	viper.SetConfigType("json")
 	viper.AddConfigPath("./configs")
+	viper.AddConfigPath("../../configs")
 	if err := viper.ReadInConfig(); err != nil {
-		return nil, err 
+		return nil, err
 	}
 	config.DbUrl = viper.GetString("dburl")
 	config.JWTString = viper.GetString("secure_string")
-	return config, nil
+	config.Password = viper.GetString("password_string")
+	return &config, nil
 }

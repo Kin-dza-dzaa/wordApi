@@ -3,17 +3,17 @@ module github.com/Kin-dza-dzaa/wordApi
 go 1.18
 
 require (
+	github.com/go-passwd/validator v0.0.0-20180902184246-0b4c967e436b
 	github.com/google/uuid v1.3.0
 	github.com/jackc/pgx/v4 v4.17.0
-	github.com/pashagolub/pgxmock v1.8.0
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.8.0
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/jackc/puddle v1.2.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/stretchr/objx v0.4.0 // indirect
 )
 
 require (
