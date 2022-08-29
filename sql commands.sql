@@ -19,6 +19,7 @@ CREATE TABLE  users(
     UNIQUE (email)
 );
 
+
 CREATE TABLE words(
     id                  SERIAL                                                              NOT NULL,
     word                TEXT                                                                NOT NULL CHECK(word != ''),
