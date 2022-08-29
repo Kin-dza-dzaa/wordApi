@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"github.com/Kin-dza-dzaa/wordApi/internal/models"
 )
@@ -21,8 +22,12 @@ func (h *Handlers) AddWordsHandler() http.Handler {
 			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "authorization error"})
 			return
 		}
-		h.service.AddWords(wordsModel, userId)
+		badWords := h.service.AddWords(wordsModel, userId)
 		w.WriteHeader(http.StatusOK)
+		if len(badWords) != 0 {
+			json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": fmt.Sprintf("some words weren't added: %v", badWords)})
+			return 
+		}
 		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": "words were added"})
 	})
 } 
@@ -42,10 +47,10 @@ func (h *Handlers) GetWordsHandler() http.Handler {
 			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": err.Error()})
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": "success", "words" : words.Words})
+		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "words":words})
 		w.WriteHeader(http.StatusOK)
 	})
-} 
+}
 
 func (h *Handlers) UpdateWordHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

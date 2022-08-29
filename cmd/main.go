@@ -18,8 +18,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer w.Close()
 	//myLogger := logger.Getlogger(w)
+	defer func() {
+		if err := w.Close(); err != nil {
+			log.Fatal(err)
+		}
+	}()
 	config, err := config.ReadConfig()
 	if err != nil {
 		log.Fatal(err)
@@ -28,8 +32,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer conn.Close(context.Background())
-	repository := repositories.NewRepository(conn)
+	defer func() {
+		if err := conn.Close(context.Background()); err != nil {
+			log.Fatal(err)
+		}
+	}()
+	repository := repositories.NewRepository(conn, config)
 	service := service.NewService(repository, config)
 	handler := handlers.NewHandlers(service)
 	handler.InitilizeHandlers()
@@ -46,6 +54,6 @@ func main() {
 	}()
 	<-handlers.StopHTTPServerChan
 	if err := srv.Shutdown(context.TODO()); err != nil {
-		panic(err) // failure/timeout shutting down the server gracefully
+		log.Fatal(err)
 	}
 }

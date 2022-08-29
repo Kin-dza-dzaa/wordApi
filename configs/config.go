@@ -8,6 +8,7 @@ type Config struct {
 	DbUrl     string
 	JWTString string
 	Password  string
+	ExternalUrl string
 }
 
 func ReadConfig() (*Config, error) {
@@ -22,5 +23,6 @@ func ReadConfig() (*Config, error) {
 	config.DbUrl = viper.GetString("dburl")
 	config.JWTString = viper.GetString("secure_string")
 	config.Password = viper.GetString("password_string")
+	config.ExternalUrl = viper.GetString("external_url")
 	return &config, nil
 }

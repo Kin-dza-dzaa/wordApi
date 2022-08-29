@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-
 	"github.com/Kin-dza-dzaa/wordApi/pkg/servise"
 	"github.com/gorilla/mux"
 )

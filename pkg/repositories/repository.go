@@ -1,8 +1,10 @@
 package repositories
 
 import (
-	"github.com/jackc/pgx/v4"
+	config "github.com/Kin-dza-dzaa/wordApi/configs"
+	external "github.com/Kin-dza-dzaa/wordApi/internal/external_call"
 	"github.com/Kin-dza-dzaa/wordApi/internal/models"
+	"github.com/jackc/pgx/v4"
 )
 
 type RepositoryUser interface {
@@ -11,8 +13,8 @@ type RepositoryUser interface {
 }
 
 type RepositoryWord interface {
-	AddWords(words models.Words, userId string)
-	GetWords(userId string) (*models.Words, error)
+	AddWords(words models.Words, userId string) []string
+	GetWords(userId string) (*[]external.Translation, error)
 	UpdateWord(words models.Words, userId string) error
 	DeleteWords(words models.Words, userId string)
 }
@@ -22,9 +24,9 @@ type Repository struct {
 	RepositoryWord
 }
 
-func NewRepository(conn *pgx.Conn) *Repository{
+func NewRepository(conn *pgx.Conn, config *config.Config) *Repository{
 	return &Repository{
 		RepositoryUser: &repositoryUser{conn: conn}, 
-		RepositoryWord: &repositoryWord{conn: conn},
+		RepositoryWord: &repositoryWord{conn: conn, config: config},
 	}
 }

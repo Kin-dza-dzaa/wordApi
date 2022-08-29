@@ -22,6 +22,7 @@ CREATE TABLE  users(
 CREATE TABLE words(
     id                  SERIAL                                                              NOT NULL,
     word                TEXT                                                                NOT NULL CHECK(word != ''),
+    trans_data JSONB                                                                        NOT NULL,
     PRIMARY KEY (id),
     UNIQUE (word)
 );

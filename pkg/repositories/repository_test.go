@@ -120,7 +120,7 @@ func (p *PostgresSuit) SetupSuite() {
 		p.FailNow(err.Error())
 	}
 	p.conn = db
-	p.repository = NewRepository(db)
+	p.repository = NewRepository(db, config)
 }
 
 func (p *PostgresSuit) TearDownSuite() {
