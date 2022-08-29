@@ -11,12 +11,12 @@ import (
 )
 
 type Translation struct {
-	SourceLanguage string  							          	  `json:"source_language"`
-	DestinationLanguage string						        	  `json:"destination_language"`
-	Word string 									              `json:"word"`
-	Translations map[string][]string				     	      `json:"transltions"`
-	DefinitionsWithExamples map[string][][]string				  `json:"definitions_with_examples,omitempty"`
-	Examples []string								              `json:"examples,omitempty"`
+	SourceLanguage string  							         `json:"source_language"`
+	DestinationLanguage string						     	 `json:"destination_language"`
+	Word string 									         `json:"word"`
+	Translations map[string][]string				     	 `json:"transltions"`
+	DefinitionsWithExamples map[string][][]string			 `json:"definitions_with_examples,omitempty"`
+	Examples []string								         `json:"examples,omitempty"`
 }
 
 func (tr *Translation) Error() string {
