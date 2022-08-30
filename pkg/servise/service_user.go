@@ -40,6 +40,18 @@ func (a *serviceUser) SignUpUser(user *models.User) error {
 }
 
 func (a *serviceUser) SignInUser(user *models.User) (string, error) {
+	if user.Email != "" {
+		if err := a.validateEmail(user); err != nil {
+			return "", err
+		}
+	} else {
+		if err := a.validateUserName(user); err != nil {
+			return "", err
+		}
+	}
+	if err := a.validatePassword(user); err != nil {
+		return "", err
+	}
 	dbUser, err := a.repository.GetUser(user)
 	if err != nil {
 		return "", errors.New("user isn't registrated")
