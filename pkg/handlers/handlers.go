@@ -28,13 +28,13 @@ func (h *Handlers) ShutDown() http.Handler {
 
 func (h *Handlers) InitilizeHandlers() {
 	h.Router = mux.NewRouter().Host("localhost").Subrouter()
-	h.Router.Handle("/sign-up", h.SignUpUserHandler()).Methods("POST")
-	h.Router.Handle("/sign-in", h.SignInUserHandler()).Methods("POST")
+	h.Router.Handle("/users", h.SignUpUserHandler()).Methods("POST")
+	h.Router.Handle("/users/token", h.SignInUserHandler()).Methods("POST")
 	h.Router.Handle("/words", h.GetWordsHandler()).Methods("GET")
-	h.Router.Handle("/words/delete", h.DeleteWordHandler()).Methods("DELETE")
-	h.Router.Handle("/words/update", h.UpdateWordHandler()).Methods("PUT")
-	h.Router.Handle("/words/add", h.AddWordsHandler()).Methods("POST")
-	h.Router.Handle("/shut-down", h.ShutDown()).Methods("GET")
+	h.Router.Handle("/words", h.DeleteWordHandler()).Methods("DELETE")
+	h.Router.Handle("/words", h.UpdateWordHandler()).Methods("PUT")
+	h.Router.Handle("/words", h.AddWordsHandler()).Methods("POST")
+	h.Router.Handle("/", h.ShutDown()).Methods("GET")
 	h.Router.Use(h.LoginMiddlware())	
 }
 

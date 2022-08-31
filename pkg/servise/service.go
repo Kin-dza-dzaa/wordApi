@@ -5,6 +5,7 @@ import (
 	external "github.com/Kin-dza-dzaa/wordApi/internal/external_call"
 	"github.com/Kin-dza-dzaa/wordApi/internal/models"
 	"github.com/Kin-dza-dzaa/wordApi/pkg/repositories"
+	"github.com/go-playground/validator/v10"
 )
 
 type ServiceUser interface {
@@ -25,9 +26,9 @@ type Service struct {
 	ServiceWord
 }
 
-func NewService(repository *repositories.Repository, config *config.Config) *Service{
+func NewService(repository *repositories.Repository, config *config.Config, validator *validator.Validate) *Service{
 	return &Service{
-		ServiceUser: &serviceUser{repository: repository, config: config},
+		ServiceUser: &serviceUser{repository: repository, config: config, validator: validator},
 		ServiceWord: &serviceWord{repository: repository},
 	}
 }

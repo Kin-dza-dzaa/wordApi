@@ -10,6 +10,7 @@ import (
 	"github.com/Kin-dza-dzaa/wordApi/pkg/handlers"
 	"github.com/Kin-dza-dzaa/wordApi/pkg/repositories"
 	"github.com/Kin-dza-dzaa/wordApi/pkg/servise"
+	"github.com/Kin-dza-dzaa/wordApi/internal/validation"
 )
 
 func main() {
@@ -37,8 +38,12 @@ func main() {
 			log.Fatal(err)
 		}
 	}()
+	validator, err := validation.InitValidators()
+	if err != nil {
+		log.Fatal(err)
+	}
 	repository := repositories.NewRepository(conn, config)
-	service := service.NewService(repository, config)
+	service := service.NewService(repository, config, validator)
 	handler := handlers.NewHandlers(service)
 	handler.InitilizeHandlers()
 	srv := &http.Server{
