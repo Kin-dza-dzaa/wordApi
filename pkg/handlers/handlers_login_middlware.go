@@ -24,7 +24,7 @@ func (h *Handlers) LoginMiddlware() func(http.Handler) http.Handler {
 						json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "invalid token"})
 						return
 					}
-					next.ServeHTTP(w, r.WithContext(context.WithValue(context.TODO(), key, user_id)))
+					next.ServeHTTP(w, r.WithContext(context.WithValue(context.TODO(), KEY, user_id)))
 					return
 				}
 			}

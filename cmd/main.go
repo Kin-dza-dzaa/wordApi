@@ -47,7 +47,7 @@ func main() {
 	handler := handlers.NewHandlers(service)
 	handler.InitilizeHandlers()
 	srv := &http.Server{
-		Handler: handler.Router,
+		Handler: handler.Cors.Handler(handler.Router),
 		Addr:    "127.0.0.1:8000",
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,

@@ -4,19 +4,24 @@ import (
 	"net/http"
 	"github.com/Kin-dza-dzaa/wordApi/pkg/servise"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 )
 
 type keyForToken string
 
 var (
-	key keyForToken = "user_id"
 	StopHTTPServerChan chan bool
-	loginRoutes []string = []string{"/words/delete", "/words/update", "/words/add", "/words"}
+	loginRoutes []string = []string{"/words", "/words", "/words", "/words"}
+)
+
+const (
+	KEY keyForToken = "user_id"
 )
 
 type Handlers struct {
 	service *service.Service
 	Router *mux.Router
+	Cors *cors.Cors
 }
 
 func (h *Handlers) ShutDown() http.Handler {
@@ -27,6 +32,12 @@ func (h *Handlers) ShutDown() http.Handler {
 }
 
 func (h *Handlers) InitilizeHandlers() {
+	h.Cors = cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedHeaders: []string{"User-Agent", "Authorization"},
+		MaxAge: 5,
+		AllowedMethods: []string{"POST", "GET", "PUT", "DELETE", "OPTIONS"},
+	})
 	h.Router = mux.NewRouter().Host("localhost").Subrouter()
 	h.Router.Handle("/users", h.SignUpUserHandler()).Methods("POST")
 	h.Router.Handle("/users/token", h.SignInUserHandler()).Methods("POST")
