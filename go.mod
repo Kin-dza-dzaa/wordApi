@@ -6,19 +6,17 @@ require (
 	github.com/go-playground/validator/v10 v10.11.0
 	github.com/google/uuid v1.3.0
 	github.com/jackc/pgx/v4 v4.17.0
+	github.com/rs/cors v1.8.2
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.8.0
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
-	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rs/cors v1.8.2 // indirect
 	github.com/stretchr/objx v0.4.0 // indirect
 )
 

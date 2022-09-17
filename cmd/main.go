@@ -19,7 +19,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	//myLogger := logger.Getlogger(w)
+	// myLogger := logger.Getlogger(w)
 	defer func() {
 		if err := w.Close(); err != nil {
 			log.Fatal(err)
@@ -53,6 +53,7 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 	}
 	go func() {
+		log.Print("Starting server at 127.0.0.1:8000")
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatalf("ListenAndServe(): %v", err)
 		}

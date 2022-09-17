@@ -11,7 +11,7 @@ type keyForToken string
 
 var (
 	StopHTTPServerChan chan bool
-	loginRoutes []string = []string{"/words", "/words", "/words", "/words"}
+	loginRoutes []string = []string{"/words", "/user/log-out", "/user/check"}
 )
 
 const (
@@ -33,14 +33,17 @@ func (h *Handlers) ShutDown() http.Handler {
 
 func (h *Handlers) InitilizeHandlers() {
 	h.Cors = cors.New(cors.Options{
-		AllowedOrigins: []string{"*"},
-		AllowedHeaders: []string{"User-Agent", "Authorization"},
+		AllowedOrigins: []string{"http://localhost:3000"},
+		AllowCredentials: true,
+		AllowedHeaders: []string{"User-Agent", "Content-type"},
 		MaxAge: 5,
 		AllowedMethods: []string{"POST", "GET", "PUT", "DELETE", "OPTIONS"},
 	})
-	h.Router = mux.NewRouter().Host("localhost").Subrouter()
-	h.Router.Handle("/users", h.SignUpUserHandler()).Methods("POST")
-	h.Router.Handle("/users/token", h.SignInUserHandler()).Methods("POST")
+	h.Router = mux.NewRouter()
+	h.Router.Handle("/user", h.SignUpUserHandler()).Methods("POST")
+	h.Router.Handle("/user/token", h.SignInUserHandler()).Methods("POST")
+	h.Router.Handle("/user/log-out", h.LogOutUser()).Methods("GET")
+	h.Router.Handle("/user/check", h.CheckUser()).Methods("GET")
 	h.Router.Handle("/words", h.GetWordsHandler()).Methods("GET")
 	h.Router.Handle("/words", h.DeleteWordHandler()).Methods("DELETE")
 	h.Router.Handle("/words", h.UpdateWordHandler()).Methods("PUT")

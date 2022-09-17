@@ -10,11 +10,18 @@ import (
 func (h *Handlers) AddWordsHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-type", "application/json")
-		var wordsModel models.Words
+		var wordsModel models.WordsAdd
 		if err := json.NewDecoder(r.Body).Decode(&wordsModel); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected array with words"})
+			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected 2 dimensional array: {words: [[word, state, collection_name], ...]}"})
 			return 
+		}
+		for _, v := range wordsModel.Words {
+			if len(v) != 3 {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected 2 dimensional array: {words: [[word, state, collection_name], ...]}"})
+				return
+			}
 		}
 		userId, ok := r.Context().Value(KEY).(string)
 		if !ok {
@@ -55,10 +62,15 @@ func (h *Handlers) GetWordsHandler() http.Handler {
 func (h *Handlers) UpdateWordHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-type", "application/json")
-		var wordsModel models.Words
+		var wordsModel models.WordsUpdate
 		if err := json.NewDecoder(r.Body).Decode(&wordsModel); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected array of 2 words: [old_word, new_word]"})
+			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected array of 4 words: [old_word, new_word, new_state: string, new_collection: string]"})
+			return 
+		}
+		if len(wordsModel.Words) != 4 {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected array of 4 words: [old_word, new_word, new_state: string, new_collection: string]"})
 			return 
 		}
 		userId, ok := r.Context().Value(KEY).(string)
@@ -80,10 +92,10 @@ func (h *Handlers) UpdateWordHandler() http.Handler {
 func (h *Handlers) DeleteWordHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-type", "application/json")
-		var wordsModel models.Words
+		var wordsModel models.WordsDelete
 		if err := json.NewDecoder(r.Body).Decode(&wordsModel); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected array of 1 word: [delete_word]"})
+			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected 2 demensional array of words: [[delete_word: string, collection_name: string]...]"})
 			return 
 		}
 		userId, ok := r.Context().Value(KEY).(string)
@@ -91,6 +103,13 @@ func (h *Handlers) DeleteWordHandler() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "authorization error"})
 			return
+		}
+		for _, v := range wordsModel.Words {
+			if len(v) != 2 {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected array of words: [[delete_word: string, collection_name: string]...]"})
+				return
+			}
 		}
 		h.service.DeleteWords(wordsModel, userId)
 		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": "words were delted"})

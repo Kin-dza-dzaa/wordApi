@@ -40,8 +40,43 @@ func (h *Handlers) SignInUserHandler() http.Handler {
 			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": err.Error()})
 			return
 		}
-		w.Header().Set("Authorization", "Bearer " + token)
+		var cookie *http.Cookie = &http.Cookie{
+			Name: "token",
+			Value: token,
+			// Secure: true, // set true on realese
+			SameSite: http.SameSiteStrictMode,
+			HttpOnly: true,
+			Path: "/",
+			MaxAge: 604800,
+		}
+		http.SetCookie(w, cookie)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": "token was sent"})
+		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": "Authorized"})
+	})
+}
+
+func (h *Handlers) LogOutUser() http.Handler {
+	return http.HandlerFunc(func (w http.ResponseWriter, r *http.Request){
+		w.Header().Set("Content-type", "application/json")
+		var cookie *http.Cookie = &http.Cookie{
+			Name: "token",
+			Value: "",
+			// Secure: true, // set true on realese
+			SameSite: http.SameSiteStrictMode,
+			HttpOnly: true,
+			Path: "/",
+			MaxAge: 5,
+		}
+		http.SetCookie(w, cookie)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": "logged out"})
+	})
+}
+
+func (h *Handlers) CheckUser() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": "checked"})
 	})
 }

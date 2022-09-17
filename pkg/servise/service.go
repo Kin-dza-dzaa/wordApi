@@ -2,7 +2,6 @@ package service
 
 import (
 	config "github.com/Kin-dza-dzaa/wordApi/configs"
-	external "github.com/Kin-dza-dzaa/wordApi/internal/external_call"
 	"github.com/Kin-dza-dzaa/wordApi/internal/models"
 	"github.com/Kin-dza-dzaa/wordApi/pkg/repositories"
 	"github.com/go-playground/validator/v10"
@@ -15,10 +14,10 @@ type ServiceUser interface {
 }
 
 type ServiceWord interface {
-	AddWords(words models.Words, userId string) []string
-	GetWords(userId string) (*[]external.Translation, error)
-	UpdateWord(words models.Words, userId string) error
-	DeleteWords(words models.Words, userId string)
+	AddWords(words models.WordsAdd, userId string) []string
+	GetWords(userId string) (*models.WordsGet, error)
+	UpdateWord(words models.WordsUpdate, userId string) error
+	DeleteWords(words models.WordsDelete, userId string)
 }
 
 type Service struct {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 	"time"
-
 	config "github.com/Kin-dza-dzaa/wordApi/configs"
 	"github.com/Kin-dza-dzaa/wordApi/internal/models"
 	"github.com/google/uuid"
@@ -13,10 +12,11 @@ import (
 )
 
 type tests struct {
-	Method       string
-	ExpectsError bool
-	Words        models.Words
-	Result       []string
+	Method       	string
+	ExpectsError 	bool
+	WordsAdd        models.WordsAdd
+	WordsUpdate 		models.WordsUpdate
+	Result       	[]string
 }
 
 var testUser models.User = models.User{
@@ -31,35 +31,35 @@ var testsArr []tests = []tests{
 	{
 		Method:       "AddWords",
 		ExpectsError: false,
-		Words:        models.Words{Words: []string{"flex", "flex", "qweqwe", "ball", "accept", "charge", "battery"}},
+		WordsAdd:     models.WordsAdd{Words: [][]string{{"flex", "1", "first"}, {"qweqwe", "1", "first"}, {"ball", "1", "first"}, {"accept", "1", "first"},{ "charge", "1", "first"}, {"battery", "1", "first"}}},
 		Result:       []string{"qweqwe"},
 	},
 	{
 		Method:       "AddWords",
 		ExpectsError: false,
-		Words:        models.Words{Words: []string{"", ""}},
+		WordsAdd:     models.WordsAdd{Words: [][]string{{"", "1", "first"}, {"", "1", "first"}}},
 		Result:       []string{"", ""},
 	},
 	{
 		Method:       "AddWords",
 		ExpectsError: false,
-		Words:        models.Words{Words: []string{"asd", "qwewqe", "qwee1e", "qweqw2", "12312wedsa", "asdqwd12", "adsad21"}},
-		Result:       []string{"asd", "qwewqe", "qwee1e", "qweqw2", "12312wedsa", "asdqwd12", "adsad21"},
+		WordsAdd:     models.WordsAdd{Words: [][]string{{"as d", "1", "first"}, {"qwewqe", "1", "first"}, {"qwee1e", "1", "first"}, {"qweqw2", "1", "first"}, {"12312wedsa", "1", "first"}, {"asdqwd12", "1", "first"}, {"adsad21", "1", "first"}}},
+		Result:       []string{"as d", "qwewqe", "qwee1e", "qweqw2", "12312wedsa", "asdqwd12", "adsad21"},
 	},
 	{
 		Method:       "UpdateWord",
 		ExpectsError: false,
-		Words:        models.Words{Words: []string{"flex", "high"}},
+		WordsUpdate:  models.WordsUpdate{Words: []string{"flex", "high", "1", "second"}},
 	},
 	{
 		Method:       "UpdateWord",
 		ExpectsError: true,
-		Words:        models.Words{Words: []string{"high", "asdasdasdasd"}},
+		WordsUpdate:  models.WordsUpdate{Words: []string{"high", "hiasdasdgh", "1", "second"}},
 	},
 	{
 		Method:       "UpdateWord",
 		ExpectsError: true,
-		Words:        models.Words{Words: []string{"flex", "true"}},
+		WordsUpdate:  models.WordsUpdate{Words: []string{"flex", "trash", "1", "second"}},
 	},
 }
 
@@ -87,12 +87,13 @@ func (m *wordSuite) SetupSuite() {
 }
 
 func (m *wordSuite) TearDownSuite() {
-	_, err := m.conn.Exec(context.Background(), "DELETE FROM USERS WHERE id=$1;", testUser.UserId)
-	if err != nil {
+	if _, err := m.conn.Exec(context.Background(), "DELETE FROM users WHERE id=$1;", testUser.UserId); err != nil{
 		m.FailNow(err.Error())
 	}
-	err = m.conn.Close(context.Background())
-	if err != nil {
+	if _, err := m.conn.Exec(context.Background(), "DELETE FROM words WHERE word=$1;", "high"); err != nil{
+		m.FailNow(err.Error())
+	}
+	if err := m.conn.Close(context.Background()); err != nil {
 		m.FailNow(err.Error())
 	}
 }
@@ -100,7 +101,7 @@ func (m *wordSuite) TearDownSuite() {
 func (m *wordSuite) TestAddWord() {
 	for _, v := range testsArr {
 		if v.Method == "AddWords" {
-			res := m.repository.AddWords(v.Words, testUser.UserId.String())
+			res := m.repository.AddWords(v.WordsAdd, testUser.UserId.String())
 			m.Equal(res, v.Result)
 		}
 	}
@@ -109,7 +110,7 @@ func (m *wordSuite) TestAddWord() {
 func (m *wordSuite) TestUpdate() {
 	for _, v := range testsArr {
 		if v.Method == "UpdateWord" {
-			res := m.repository.UpdateWord(v.Words, testUser.UserId.String())
+			res := m.repository.UpdateWord(v.WordsUpdate, testUser.UserId.String())
 			if v.ExpectsError {
 				m.Error(res)
 			} else {
