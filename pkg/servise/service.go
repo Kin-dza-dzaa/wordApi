@@ -16,7 +16,7 @@ type ServiceUser interface {
 type ServiceWord interface {
 	AddWords(words models.WordsAdd, userId string) []string
 	GetWords(userId string) (*models.WordsGet, error)
-	UpdateWord(words models.WordsUpdate, userId string) error
+	UpdateWord(words models.WordToUpdate, userId string) error
 	DeleteWords(words models.WordsDelete, userId string)
 }
 

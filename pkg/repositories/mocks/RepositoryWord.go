@@ -57,11 +57,11 @@ func (_m *RepositoryWord) GetWords(userId string) (*models.WordsGet, error) {
 }
 
 // UpdateWord provides a mock function with given fields: words, userId
-func (_m *RepositoryWord) UpdateWord(words models.WordsUpdate, userId string) error {
+func (_m *RepositoryWord) UpdateWord(words models.WordToUpdate, userId string) error {
 	ret := _m.Called(words, userId)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(models.WordsUpdate, string) error); ok {
+	if rf, ok := ret.Get(0).(func(models.WordToUpdate, string) error); ok {
 		r0 = rf(words, userId)
 	} else {
 		r0 = ret.Error(0)

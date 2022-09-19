@@ -13,16 +13,16 @@ func (h *Handlers) AddWordsHandler() http.Handler {
 		var wordsModel models.WordsAdd
 		if err := json.NewDecoder(r.Body).Decode(&wordsModel); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected 2 dimensional array: {words: [[word, state, collection_name], ...]}"})
+			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected ojbect like this: {words: [{word: string, state: int, collection_name: string}, ...]}"})
 			return 
 		}
-		for _, v := range wordsModel.Words {
-			if len(v) != 3 {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected 2 dimensional array: {words: [[word, state, collection_name], ...]}"})
-				return
-			}
-		}
+		// for _, v := range wordsModel.Words {
+		// 	if len(v) != 3 {
+		// 		w.WriteHeader(http.StatusBadRequest)
+		// 		json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected 2 dimensional array: {words: [[word, state, collection_name], ...]}"})
+		// 		return
+		// 	}
+		// }
 		userId, ok := r.Context().Value(KEY).(string)
 		if !ok {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -62,17 +62,17 @@ func (h *Handlers) GetWordsHandler() http.Handler {
 func (h *Handlers) UpdateWordHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-type", "application/json")
-		var wordsModel models.WordsUpdate
+		var wordsModel models.WordToUpdate
 		if err := json.NewDecoder(r.Body).Decode(&wordsModel); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected array of 4 words: [old_word, new_word, new_state: string, new_collection: string]"})
 			return 
 		}
-		if len(wordsModel.Words) != 4 {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected array of 4 words: [old_word, new_word, new_state: string, new_collection: string]"})
-			return 
-		}
+		// if len(wordsModel.Words) != 4 {
+		// 	w.WriteHeader(http.StatusBadRequest)
+		// 	json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "expected array of 4 words: [old_word, new_word, new_state: string, new_collection: string]"})
+		// 	return 
+		// }
 		userId, ok := r.Context().Value(KEY).(string)
 		if !ok {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -84,7 +84,7 @@ func (h *Handlers) UpdateWordHandler() http.Handler {
 			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": err.Error()})
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": wordsModel.Words[0] + " was updated to " + wordsModel.Words[1]})
+		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": wordsModel.OldWord + " was updated to " + wordsModel.NewWord})
 		w.WriteHeader(http.StatusOK)
 	})
 } 

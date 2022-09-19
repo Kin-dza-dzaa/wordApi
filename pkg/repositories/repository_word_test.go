@@ -1,22 +1,24 @@
 package repositories
 
+// this test uses real db connection, keep it in mind
+
 import (
 	"context"
-	"testing"
-	"time"
 	config "github.com/Kin-dza-dzaa/wordApi/configs"
 	"github.com/Kin-dza-dzaa/wordApi/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/suite"
+	"testing"
+	"time"
 )
 
 type tests struct {
-	Method       	string
-	ExpectsError 	bool
-	WordsAdd        models.WordsAdd
-	WordsUpdate 		models.WordsUpdate
-	Result       	[]string
+	Method       string
+	ExpectsError bool
+	WordsAdd     models.WordsAdd
+	WordsUpdate  models.WordToUpdate
+	Result       []string
 }
 
 var testUser models.User = models.User{
@@ -31,35 +33,35 @@ var testsArr []tests = []tests{
 	{
 		Method:       "AddWords",
 		ExpectsError: false,
-		WordsAdd:     models.WordsAdd{Words: [][]string{{"flex", "1", "first"}, {"qweqwe", "1", "first"}, {"ball", "1", "first"}, {"accept", "1", "first"},{ "charge", "1", "first"}, {"battery", "1", "first"}}},
+		WordsAdd:     models.WordsAdd{Words: []models.WordToAdd{{Word: "flex", CollectionName: "first"}, {Word: "qweqwe", CollectionName: "first"}, {Word: "ball", CollectionName: "first"}, {Word: "accept", CollectionName: "first"}, {Word: "charge", CollectionName: "first"}, {Word: "battery", CollectionName: "first"}}},
 		Result:       []string{"qweqwe"},
 	},
 	{
 		Method:       "AddWords",
 		ExpectsError: false,
-		WordsAdd:     models.WordsAdd{Words: [][]string{{"", "1", "first"}, {"", "1", "first"}}},
+		WordsAdd:     models.WordsAdd{Words: []models.WordToAdd{{Word: "", CollectionName: "first"}, {Word: "", CollectionName: "first"}}},
 		Result:       []string{"", ""},
 	},
 	{
 		Method:       "AddWords",
 		ExpectsError: false,
-		WordsAdd:     models.WordsAdd{Words: [][]string{{"as d", "1", "first"}, {"qwewqe", "1", "first"}, {"qwee1e", "1", "first"}, {"qweqw2", "1", "first"}, {"12312wedsa", "1", "first"}, {"asdqwd12", "1", "first"}, {"adsad21", "1", "first"}}},
+		WordsAdd:     models.WordsAdd{Words: []models.WordToAdd{{Word: "as d", CollectionName: "first"}, {Word: "qwewqe", CollectionName: "first"}, {Word: "qwee1e", CollectionName: "first"}, {Word: "qweqw2", CollectionName: "first"}, {Word: "12312wedsa", CollectionName: "first"}, {Word: "asdqwd12", CollectionName: "first"}, {Word: "adsad21", CollectionName: "first"}}},
 		Result:       []string{"as d", "qwewqe", "qwee1e", "qweqw2", "12312wedsa", "asdqwd12", "adsad21"},
 	},
 	{
 		Method:       "UpdateWord",
 		ExpectsError: false,
-		WordsUpdate:  models.WordsUpdate{Words: []string{"flex", "high", "1", "second"}},
+		WordsUpdate:  models.WordToUpdate{OldWord: "flex", NewWord: "high", CollectionName: "second"},
 	},
 	{
 		Method:       "UpdateWord",
 		ExpectsError: true,
-		WordsUpdate:  models.WordsUpdate{Words: []string{"high", "hiasdasdgh", "1", "second"}},
+		WordsUpdate:  models.WordToUpdate{OldWord: "high", NewWord: "hiasdasdgh", CollectionName: "second"},
 	},
 	{
 		Method:       "UpdateWord",
 		ExpectsError: true,
-		WordsUpdate:  models.WordsUpdate{Words: []string{"flex", "trash", "1", "second"}},
+		WordsUpdate:  models.WordToUpdate{OldWord: "flex", NewWord: "trash", CollectionName: "second"},
 	},
 }
 
@@ -87,11 +89,14 @@ func (m *wordSuite) SetupSuite() {
 }
 
 func (m *wordSuite) TearDownSuite() {
-	if _, err := m.conn.Exec(context.Background(), "DELETE FROM users WHERE id=$1;", testUser.UserId); err != nil{
+		var wordsToDelte []string = []string{"flex", "high", "ball", "accept", "charge", "battery"}
+	if _, err := m.conn.Exec(context.Background(), "DELETE FROM users WHERE id=$1;", testUser.UserId); err != nil {
 		m.FailNow(err.Error())
 	}
-	if _, err := m.conn.Exec(context.Background(), "DELETE FROM words WHERE word=$1;", "high"); err != nil{
-		m.FailNow(err.Error())
+	for _, v := range wordsToDelte {
+		if _, err := m.conn.Exec(context.Background(), "DELETE FROM words WHERE word=$1;", v); err != nil{
+			m.FailNow(err.Error())
+		}
 	}
 	if err := m.conn.Close(context.Background()); err != nil {
 		m.FailNow(err.Error())

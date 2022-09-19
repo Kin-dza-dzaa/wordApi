@@ -17,7 +17,7 @@ func (s *serviceWord) GetWords(userId string) (*models.WordsGet, error) {
 	return s.repository.GetWords(userId)
 }
 
-func (s *serviceWord) UpdateWord(words models.WordsUpdate, userId string) error {
+func (s *serviceWord) UpdateWord(words models.WordToUpdate, userId string) error {
 	return s.repository.UpdateWord(words, userId)
 }
 
