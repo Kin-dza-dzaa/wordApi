@@ -1,15 +1,8 @@
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE ROLE wordapi WITH LOGIN;
 
-CREATE TABLE  users(
-    id UUID                                                                                 NOT NULL,
-    user_name         TEXT                                                                  NOT NULL CHECk(user_name != ''),
-    email             TEXT                                                                  NOT NULL CHECK(email != ''),
-    password          TEXT                                                                  NOT NULL CHECK(password != ''),
-    registration_date TIMESTAMP                                                             NOT NULL, 
-    PRIMARY KEY (id),
-    UNIQUE(user_name),
-    UNIQUE (email)
-);
+CREATE DATABASE wordapi WITH OWNER wordapi;
+
+\c wordapi wordapi
 
 CREATE TABLE words(
     id                  SERIAL                                                              NOT NULL,
@@ -24,7 +17,7 @@ CREATE TABLE user_collection(
     word_id INTEGER                                                                         NOT NULL,
     state INTEGER                                                                           NOT NULL,
     collection_name TEXT                                                                    NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    time_of_last_repeating TIMESTAMP                                                        NOT NULL,
     FOREIGN KEY (word_id) REFERENCES words(id),
-    PRIMARY KEY(user_id, word_id, collection_name)
+    UNIQUE(user_id, word_id, collection_name)
 );

@@ -4,30 +4,33 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"github.com/Kin-dza-dzaa/wordApi/internal/models"
 )
 
-func (h *Handlers) LoginMiddlware() func(http.Handler) http.Handler {
+func (handlers *Handlers) LoginMiddlware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			for _, v := range loginRoutes {
-				if r.URL.Path == v {
-					cookie, err := r.Cookie("token")
-					if err != nil {
-						w.WriteHeader(http.StatusUnauthorized)
-						json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "invalid token"})
-						return
-					}
-					user_id, err := h.service.ValidateToken(cookie.Value)
-					if err != nil {
-						w.WriteHeader(http.StatusUnauthorized)
-						json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "invalid token"})
-						return
-					}
-					next.ServeHTTP(w, r.WithContext(context.WithValue(context.TODO(), KEY, user_id)))
-					return
-				}
+			w.Header().Set("Content-type", "application/json")
+			cookie, err := r.Cookie("Access-token")
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]string{"result": "error", "message": "invalid token"})
+				return
 			}
-			next.ServeHTTP(w, r)
+			user := &models.User{
+				Jwt: cookie.Value,
+			}
+			if err := handlers.service.ValidateToken(user); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]string{"result": "error", "message": "invalid token"})
+				return
+			}
+			if user.CsrfToken != r.Header.Get("X-CSRF-Token") {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]string{"result": "error", "message": "invalid token"})
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(context.WithValue(context.TODO(), KeyForToken("user_id"),user.UserId.String())))
 		})
 	}
 }

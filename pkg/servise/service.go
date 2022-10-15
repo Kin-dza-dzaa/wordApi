@@ -4,30 +4,18 @@ import (
 	config "github.com/Kin-dza-dzaa/wordApi/configs"
 	"github.com/Kin-dza-dzaa/wordApi/internal/models"
 	"github.com/Kin-dza-dzaa/wordApi/pkg/repositories"
-	"github.com/go-playground/validator/v10"
+	"github.com/rs/zerolog"
 )
 
-type ServiceUser interface {
-	SignInUser(user *models.User) (string, error)
-	ValidateToken(token string) (string, error)
-	SignUpUser(user *models.User) error
-}
-
-type ServiceWord interface {
-	AddWords(words models.WordsAdd, userId string) []string
+type Service interface {
+	AddWords(words *models.WordsToAdd, userId string) []string
 	GetWords(userId string) (*models.WordsGet, error)
-	UpdateWord(words models.WordToUpdate, userId string) error
-	DeleteWords(words models.WordsDelete, userId string)
+	UpdateWord(words *models.WordToUpdate, userId string) error
+	DeleteWords(words *models.WordsToDelete, userId string)
+	UpdateState(words *models.StatesToUpdate, userId string)
+	ValidateToken(user *models.User) (error)
 }
 
-type Service struct {
-	ServiceUser
-	ServiceWord
-}
-
-func NewService(repository *repositories.Repository, config *config.Config, validator *validator.Validate) *Service{
-	return &Service{
-		ServiceUser: &serviceUser{repository: repository, config: config, validator: validator},
-		ServiceWord: &serviceWord{repository: repository},
-	}
+func NewService(repository repositories.Repository, config *config.Config, logger *zerolog.Logger) Service{
+	return NewServiceWords(repository, config, logger)
 }

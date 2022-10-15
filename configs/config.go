@@ -5,24 +5,22 @@ import (
 )
 
 type Config struct {
-	DbUrl     string
-	JWTString string
-	Password  string
-	ExternalUrl string
+	DbUrl         string `mapstructure:"DBURL"`
+	JWTString     string `mapstructure:"SECURE_STRING"`
+	ExternalUrl   string `mapstructure:"EXTERNAL_URL"`
+	Adress        string `mapstructure:"ADRESS"`
 }
 
 func ReadConfig() (*Config, error) {
-	var config Config
+	config := new(Config)
 	viper.SetConfigName("config")
-	viper.SetConfigType("json")
+	viper.SetConfigType("env")
 	viper.AddConfigPath("./configs")
-	viper.AddConfigPath("../../configs")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("./../../configs") // for tests
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err
 	}
-	config.DbUrl = viper.GetString("dburl")
-	config.JWTString = viper.GetString("secure_string")
-	config.Password = viper.GetString("password_string")
-	config.ExternalUrl = viper.GetString("external_url")
-	return &config, nil
+	viper.Unmarshal(&config)
+	return config, nil
 }

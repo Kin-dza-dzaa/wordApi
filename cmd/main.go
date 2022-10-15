@@ -2,64 +2,47 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"net/http"
+	"os"
 	"time"
-	config "github.com/Kin-dza-dzaa/wordApi/configs"
-	"github.com/Kin-dza-dzaa/wordApi/internal/logger"
+	"github.com/Kin-dza-dzaa/wordApi/configs"
 	"github.com/Kin-dza-dzaa/wordApi/pkg/handlers"
 	"github.com/Kin-dza-dzaa/wordApi/pkg/repositories"
 	"github.com/Kin-dza-dzaa/wordApi/pkg/servise"
-	"github.com/Kin-dza-dzaa/wordApi/internal/validation"
+	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/rs/zerolog"
 )
 
 func main() {
-	handlers.StopHTTPServerChan = make(chan bool)
-	w, err := logger.GetWriter()
-	if err != nil {
-		log.Fatal(err)
-	}
-	// myLogger := logger.Getlogger(w)
-	defer func() {
-		if err := w.Close(); err != nil {
-			log.Fatal(err)
-		}
-	}()
+	myLogger := zerolog.New(os.Stdout).With().Caller().Timestamp().Logger()
 	config, err := config.ReadConfig()
 	if err != nil {
-		log.Fatal(err)
+		myLogger.Fatal().Msg(err.Error())
 	}
-	conn, err := repositories.Connect(config.DbUrl)
+	pool, err := pgxpool.Connect(context.TODO(), config.DbUrl)
 	if err != nil {
-		log.Fatal(err)
+		myLogger.Fatal().Msg(err.Error())
 	}
-	defer func() {
-		if err := conn.Close(context.Background()); err != nil {
-			log.Fatal(err)
-		}
-	}()
-	validator, err := validation.InitValidators()
-	if err != nil {
-		log.Fatal(err)
-	}
-	repository := repositories.NewRepository(conn, config)
-	service := service.NewService(repository, config, validator)
-	handler := handlers.NewHandlers(service)
-	handler.InitilizeHandlers()
+	defer pool.Close()
+	myRepository := repositories.NewRepository(pool, &myLogger, config)
+	myService := service.NewService(myRepository, config, &myLogger)
+	myHandlers := handlers.NewHandlers(myService)
+	myHandlers.InitilizeHandlers()
 	srv := &http.Server{
-		Handler: handler.Cors.Handler(handler.Router),
-		Addr:    "127.0.0.1:8000",
+		Handler: myHandlers.Cors.Handler(myHandlers.Router),
+		Addr:    config.Adress,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
 	go func() {
-		log.Print("Starting server at 127.0.0.1:8000")
+		myLogger.Info().Msg(fmt.Sprintf("Staring server wordapi at %v", config.Adress))
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			log.Fatalf("ListenAndServe(): %v", err)
+			myLogger.Fatal().Msg(err.Error())
 		}
 	}()
-	<-handlers.StopHTTPServerChan
+	<-myHandlers.StopHTTPServerChan
 	if err := srv.Shutdown(context.TODO()); err != nil {
-		log.Fatal(err)
+		myLogger.Fatal().Msg(err.Error())
 	}
 }

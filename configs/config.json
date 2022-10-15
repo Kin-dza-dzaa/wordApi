@@ -1,7 +1,0 @@
-{   
-    "dburl": "postgres://wordapi:12345@localhost:5432/wordapi",
-    "secure_string": "FZQBijXIcFYSGexUiCmRWBIxNzfGLtEv",
-    "password_string": "!\"#$%&\\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ^_`abcdefghijklmnopqrstuvwxyz",
-    "external_url" : "https://translate.google.com/_/TranslateWebserverUi/data/batchexecute?rpcids=MkEWBc&bl=boq_translate-webserver_20201207.13_p0&soc-app=1&soc-platform=1&soc-device=1&rt=c"
-
-}

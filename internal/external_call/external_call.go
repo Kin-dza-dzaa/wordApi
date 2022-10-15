@@ -7,23 +7,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	config "github.com/Kin-dza-dzaa/wordApi/configs"
+	"github.com/Kin-dza-dzaa/wordApi/internal/models"
 )
 
-type Translation struct {
-	SourceLanguage string  							         `json:"source_language"`
-	DestinationLanguage string						     	 `json:"destination_language"`
-	Word string 									         `json:"word"`
-	Translations map[string][]string				     	 `json:"transltions"`
-	DefinitionsWithExamples map[string][][]string			 `json:"definitions_with_examples,omitempty"`
-	Examples []string								         `json:"examples,omitempty"`
-}
-
-func (tr *Translation) Error() string {
-	return "response doesn't have any translation data"
-}
-
-func getExamples(translateData []interface{}, tranlationPtr *Translation) {
+func getExamples(translateData []interface{}, tranlationPtr *models.Translation) {
 	arrayOfEx, ok := translateData[2].([]interface{})	
 	if !ok {
 		return
@@ -45,7 +34,7 @@ func getExamples(translateData []interface{}, tranlationPtr *Translation) {
 	}
 }
 
-func getDefinitions(translateData []interface{}, tranlationPtr *Translation) {
+func getDefinitions(translateData []interface{}, tranlationPtr *models.Translation) {
 	arrayOfDef, ok := translateData[1].([]interface{})	
 	if !ok {
 		return
@@ -62,7 +51,7 @@ func getDefinitions(translateData []interface{}, tranlationPtr *Translation) {
 		}
 		partOfSpeach, ok := arrayOfDefPart[0].(string)
 		if !ok {
-			return
+			continue
 		}
 		arrayOfDefPart, ok = arrayOfDefPart[1].([]interface{})
 		if !ok {
@@ -99,7 +88,7 @@ func getDefinitions(translateData []interface{}, tranlationPtr *Translation) {
 	}
 } 
 
-func getTranslations(translateData []interface{}, translationPtr *Translation) error {
+func getTranslations(translateData []interface{}, translationPtr *models.Translation) error {
 	translationData, ok := translateData[5].([]interface{})
 	if !ok {
 		return translationPtr
@@ -116,7 +105,7 @@ func getTranslations(translateData []interface{}, translationPtr *Translation) e
 		}
 		partOfSpeech, ok := partOfSpeechData[0].(string)
 		if !ok {
-			return translationPtr
+			continue
 		}
 		wordTranslations, ok := partOfSpeechData[1].([]interface{})
 		if !ok {
@@ -139,16 +128,16 @@ func getTranslations(translateData []interface{}, translationPtr *Translation) e
 	return nil
 }
 
-func getJson(jsonResponse []interface{}, sourceLanguage string, destinationLanguage string, word string) (*Translation, error) {
-	var translation *Translation = new(Translation)
+func getJson(jsonResponse []interface{}, sourceLanguage string, destinationLanguage string, word string) (*models.Translation, error) {
+	var translation *models.Translation = new(models.Translation)
 	translation.SourceLanguage, translation.DestinationLanguage, translation.Word = sourceLanguage, destinationLanguage, word
 	translateData, ok := jsonResponse[3].([]interface{})
 	if !ok {
-		return new(Translation), translation
+		return new(models.Translation), translation
 	}
 	err := getTranslations(translateData, translation)
 	if err != nil {
-		return new(Translation), err
+		return new(models.Translation), err
 	}
 	getDefinitions(translateData, translation)
 	getExamples(translateData, translation)
@@ -191,6 +180,7 @@ func PostReq(word, sourceLanguage, destinationLanguage string, config *config.Co
 	if err != nil {
 		return nil, err
 	}
+	defer response.Body.Close()
 	if response.StatusCode != 200 {
 		return nil, fmt.Errorf("error: status code - %d", response.StatusCode)
 	}
@@ -210,18 +200,22 @@ func PostReq(word, sourceLanguage, destinationLanguage string, config *config.Co
 	return acceptedJson, nil
 }
 
-func GetTranlations(word, sourceLanguage, destinationLanguage string, config *config.Config) (*Translation, error) {
+func GetTranlations(word, sourceLanguage, destinationLanguage string, config *config.Config, channelJson chan *models.Translation, channelBadWords chan string, wg *sync.WaitGroup, wordToAdd *models.WordToAdd) {
+	defer wg.Done()
 	rawJson, err := PostReq(word, sourceLanguage, destinationLanguage, config)
 	if err != nil {
-		return nil, err
+		channelBadWords <- word
+		return 
 	}
 	unmarshalledJson, err := unmarshalJsonTwice(rawJson)
 	if err != nil {
-		return nil, err
+		channelBadWords <- word
+		return 
 	}
 	translation, err := getJson(unmarshalledJson, sourceLanguage, destinationLanguage, word)
 	if err != nil {
-		return nil, err
+		channelBadWords <- word
+		return 
 	}
-	return translation, nil
+	channelJson <- translation
 }

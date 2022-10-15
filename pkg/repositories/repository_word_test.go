@@ -4,123 +4,138 @@ package repositories
 
 import (
 	"context"
+	"os"
+	"testing"
+	"time"
 	config "github.com/Kin-dza-dzaa/wordApi/configs"
 	"github.com/Kin-dza-dzaa/wordApi/internal/models"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
 )
 
 type tests struct {
 	Method       string
 	ExpectsError bool
-	WordsAdd     models.WordsAdd
+	WordsToAdd   models.WordsToAdd
 	WordsUpdate  models.WordToUpdate
 	Result       []string
-}
-
-var testUser models.User = models.User{
-	UserId:   uuid.New(),
-	UserName: "TestUserWords",
-	Email:    "TestUserWords@gmail.com",
-	Password: "1312e9djc091j20e91092w",
-	Time:     time.Now(),
-}
-
-var testsArr []tests = []tests{
-	{
-		Method:       "AddWords",
-		ExpectsError: false,
-		WordsAdd:     models.WordsAdd{Words: []models.WordToAdd{{Word: "flex", CollectionName: "first"}, {Word: "qweqwe", CollectionName: "first"}, {Word: "ball", CollectionName: "first"}, {Word: "accept", CollectionName: "first"}, {Word: "charge", CollectionName: "first"}, {Word: "battery", CollectionName: "first"}}},
-		Result:       []string{"qweqwe"},
-	},
-	{
-		Method:       "AddWords",
-		ExpectsError: false,
-		WordsAdd:     models.WordsAdd{Words: []models.WordToAdd{{Word: "", CollectionName: "first"}, {Word: "", CollectionName: "first"}}},
-		Result:       []string{"", ""},
-	},
-	{
-		Method:       "AddWords",
-		ExpectsError: false,
-		WordsAdd:     models.WordsAdd{Words: []models.WordToAdd{{Word: "as d", CollectionName: "first"}, {Word: "qwewqe", CollectionName: "first"}, {Word: "qwee1e", CollectionName: "first"}, {Word: "qweqw2", CollectionName: "first"}, {Word: "12312wedsa", CollectionName: "first"}, {Word: "asdqwd12", CollectionName: "first"}, {Word: "adsad21", CollectionName: "first"}}},
-		Result:       []string{"as d", "qwewqe", "qwee1e", "qweqw2", "12312wedsa", "asdqwd12", "adsad21"},
-	},
-	{
-		Method:       "UpdateWord",
-		ExpectsError: false,
-		WordsUpdate:  models.WordToUpdate{OldWord: "flex", NewWord: "high", CollectionName: "second"},
-	},
-	{
-		Method:       "UpdateWord",
-		ExpectsError: true,
-		WordsUpdate:  models.WordToUpdate{OldWord: "high", NewWord: "hiasdasdgh", CollectionName: "second"},
-	},
-	{
-		Method:       "UpdateWord",
-		ExpectsError: true,
-		WordsUpdate:  models.WordToUpdate{OldWord: "flex", NewWord: "trash", CollectionName: "second"},
-	},
+	err string
 }
 
 type wordSuite struct {
 	suite.Suite
-	conn       *pgx.Conn
-	repository *Repository
+	UUidTest 	uuid.UUID
+	pool        *pgxpool.Pool
+	repository	Repository
 }
 
-func (m *wordSuite) SetupSuite() {
+func (suite *wordSuite) SetupSuite() {
+	suite.UUidTest = uuid.New()
 	config, err := config.ReadConfig()
 	if err != nil {
-		m.FailNow(err.Error())
+		suite.FailNow(err.Error())
 	}
-	conn, err := Connect(config.DbUrl)
+	conn, err := pgxpool.Connect(context.TODO(), config.DbUrl)
 	if err != nil {
-		m.FailNow(err.Error())
+		suite.FailNow(err.Error())
 	}
-	m.conn = conn
-	m.repository = NewRepository(conn, config)
-	err = m.repository.SignUpUser(&testUser)
-	if err != nil {
-		m.FailNow(err.Error())
-	}
+	suite.pool = conn
+	myLogger := zerolog.New(os.Stdout).With().Caller().Timestamp().Logger()
+	suite.repository = NewRepository(conn, &myLogger, config)
 }
 
-func (m *wordSuite) TearDownSuite() {
-		var wordsToDelte []string = []string{"flex", "high", "ball", "accept", "charge", "battery"}
-	if _, err := m.conn.Exec(context.Background(), "DELETE FROM users WHERE id=$1;", testUser.UserId); err != nil {
-		m.FailNow(err.Error())
-	}
+func (suite *wordSuite) TearDownSuite() {
+	var wordsToDelte []string = []string{"flex", "high", "ball", "accept", "charge", "battery"}
 	for _, v := range wordsToDelte {
-		if _, err := m.conn.Exec(context.Background(), "DELETE FROM words WHERE word=$1;", v); err != nil{
-			m.FailNow(err.Error())
+		if _, err := suite.pool.Exec(context.TODO(), "DELETE FROM user_collection WHERE word_id=(select id from words where word = $1);", v); err != nil{
+			suite.FailNow(err.Error())
+		}
+		if _, err := suite.pool.Exec(context.TODO(), "DELETE FROM words WHERE word = $1;", v); err != nil{
+			suite.FailNow(err.Error())
 		}
 	}
-	if err := m.conn.Close(context.Background()); err != nil {
-		m.FailNow(err.Error())
+	suite.pool.Close()
+}
+
+func (suite *wordSuite) TestAddWord() {
+	var testSlice []tests = []tests{
+		{
+			Method:       "AddWords",
+			ExpectsError: false,
+			WordsToAdd:     models.WordsToAdd{Words: []models.WordToAdd{{Word: "flex", CollectionName: "first", TimeOfLastRepeating: time.Now()}, {Word: "qweqwe", CollectionName: "first", TimeOfLastRepeating: time.Now()}, {Word: "ball", CollectionName: "first", TimeOfLastRepeating: time.Now()}, {Word: "accept", CollectionName: "first", TimeOfLastRepeating: time.Now()}, {Word: "charge", CollectionName: "first", TimeOfLastRepeating: time.Now()}, {Word: "battery", CollectionName: "first", TimeOfLastRepeating: time.Now()}}},
+			Result:       []string{"qweqwe"},
+		},
+		{
+			Method:       "AddWords",
+			ExpectsError: false,
+			WordsToAdd:     models.WordsToAdd{Words: []models.WordToAdd{{Word: "", CollectionName: "first", TimeOfLastRepeating: time.Now()}, {Word: "", CollectionName: "first", TimeOfLastRepeating: time.Now()}}},
+			Result:       []string{"", ""},
+		},
+		{
+			Method:       "AddWords",
+			ExpectsError: false,
+			WordsToAdd:     models.WordsToAdd{Words: []models.WordToAdd{{Word: "as d", CollectionName: "first", TimeOfLastRepeating: time.Now()}, {Word: "qwewqe", CollectionName: "first", TimeOfLastRepeating: time.Now()}, {Word: "qwee1e", CollectionName: "first", TimeOfLastRepeating: time.Now()}, {Word: "qweqw2", CollectionName: "first", TimeOfLastRepeating: time.Now()}, {Word: "12312wedsa", CollectionName: "first", TimeOfLastRepeating: time.Now()}, {Word: "asdqwd12", CollectionName: "first", TimeOfLastRepeating: time.Now()}, {Word: "adsad21", CollectionName: "first", TimeOfLastRepeating: time.Now()}}},
+			Result:       []string{"as d", "qwewqe", "qwee1e", "qweqw2", "12312wedsa", "asdqwd12", "adsad21"},
+		},
+	} 
+	for _, v := range testSlice {
+		res := suite.repository.AddWords(&v.WordsToAdd, suite.UUidTest.String())
+		for _, value := range res {
+			suite.Contains(v.Result, value)
+		}
 	}
 }
 
-func (m *wordSuite) TestAddWord() {
-	for _, v := range testsArr {
-		if v.Method == "AddWords" {
-			res := m.repository.AddWords(v.WordsAdd, testUser.UserId.String())
-			m.Equal(res, v.Result)
+func (suite *wordSuite) TestUpdate() {
+	var testSlice []tests = []tests{
+		{
+			Method:       "UpdateWord",
+			ExpectsError: false,
+			WordsUpdate:  models.WordToUpdate{OldWord: "flex", NewWord: "high", CollectionName: "first", TimeOfLastRepeating: time.Now()},
+		},
+		{
+			Method:       "UpdateWord",
+			ExpectsError: true,
+			WordsUpdate:  models.WordToUpdate{OldWord: "high", NewWord: "hiasdasdgh", CollectionName: "second", TimeOfLastRepeating: time.Now()},
+			err: "update was unsuccessful",
+		},
+		{
+			Method:       "UpdateWord",
+			ExpectsError: true,
+			WordsUpdate:  models.WordToUpdate{OldWord: "flex", NewWord: "trash", CollectionName: "second", TimeOfLastRepeating: time.Now()},
+			err: "you don't have word flex",
+		},
+	} 
+	for _, v := range testSlice {
+		res := suite.repository.UpdateWord(&v.WordsUpdate, suite.UUidTest.String())
+		if v.ExpectsError {
+			suite.EqualError(res, v.err)
+		} else {
+			suite.Nil(res)
 		}
 	}
 }
 
-func (m *wordSuite) TestUpdate() {
-	for _, v := range testsArr {
-		if v.Method == "UpdateWord" {
-			res := m.repository.UpdateWord(v.WordsUpdate, testUser.UserId.String())
-			if v.ExpectsError {
-				m.Error(res)
-			} else {
-				m.Nil(res)
-			}
+func (suite *wordSuite) TestGetWords() {
+	var testSlice []tests = []tests{
+		{
+			Method:       "GetWords",
+			ExpectsError: false,
+		},
+		{
+			Method:       "GetWords",
+			ExpectsError: false,
+		},
+	} 
+	for _, v := range testSlice {
+		if v.ExpectsError {
+			_, err := suite.repository.GetWords(uuid.New().String())
+			suite.EqualError(err, v.err)
+		} else {
+			_, err := suite.repository.GetWords(suite.UUidTest.String())
+			suite.Nil(err)
 		}
 	}
 }
