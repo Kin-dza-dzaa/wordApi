@@ -18,6 +18,7 @@ func ReadConfig() (*Config, error) {
 	viper.AddConfigPath("./configs")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("./../../configs") // for tests
+	viper.AddConfigPath("../configs") // for tests
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err
 	}

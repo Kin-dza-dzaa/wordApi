@@ -10,7 +10,7 @@ import (
 func (handlers *Handlers) AddWordsHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var wordsModel models.WordsToAdd
-		if err := handlers.customUnmarshal(r, &wordsModel); err != nil {
+		if err := handlers.customUnmarshall(r, &wordsModel); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": `expected ojbect: {"words": [{"word": string, "state": int, "collection_name": string}, ...]}`})
 			return
@@ -45,7 +45,7 @@ func (handlers *Handlers) GetWordsHandler() http.Handler {
 			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": err.Error()})
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "response": words, "message": "words're sent"})
+		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "response": words, "message": "words were sent"})
 		w.WriteHeader(http.StatusOK)
 	})
 }
@@ -53,7 +53,7 @@ func (handlers *Handlers) GetWordsHandler() http.Handler {
 func (handlers *Handlers) UpdateWordHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var wordsModel models.WordToUpdate
-		if err := handlers.customUnmarshal(r, &wordsModel); err != nil {
+		if err := handlers.customUnmarshall(r, &wordsModel); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": `expected object: {"old_word": string, "new_word": string, "collection_name": string}`})
 			return
@@ -77,7 +77,7 @@ func (handlers *Handlers) UpdateWordHandler() http.Handler {
 func (handlers *Handlers) DeleteWordHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var wordsModel models.WordsToDelete
-		if err := handlers.customUnmarshal(r, &wordsModel); err != nil {
+		if err := handlers.customUnmarshall(r, &wordsModel); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": `expected object: {"words": [{"collection_name": string, "word": string}...]}`})
 			return
@@ -97,9 +97,9 @@ func (handlers *Handlers) DeleteWordHandler() http.Handler {
 func (handlers *Handlers) UpdateStateHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var wordsModel models.StatesToUpdate
-		if err := handlers.customUnmarshal(r, &wordsModel); err != nil {
+		if err := handlers.customUnmarshall(r, &wordsModel); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": `expected object: {"collection_name": string, "words": object[{"word": string, "new_state": number}]}`})
+			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": `expected object: {"collection_name": string, "words": [{"word": string, "new_state": number}]}`})
 			return
 		}
 		userId, ok := r.Context().Value(KeyForToken("user_id")).(string)
@@ -114,7 +114,7 @@ func (handlers *Handlers) UpdateStateHandler() http.Handler {
 	})
 }
 
-func (hanlders *Handlers) customUnmarshal(r *http.Request, target interface{}) error {
+func (hanlders *Handlers) customUnmarshall(r *http.Request, target interface{}) error {
 	if err := json.NewDecoder(r.Body).Decode(target); err != nil {
 		return err
 	}

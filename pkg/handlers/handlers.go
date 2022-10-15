@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	service "github.com/Kin-dza-dzaa/wordApi/pkg/servise"
+	"github.com/Kin-dza-dzaa/wordApi/pkg/servise"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 )

@@ -44,10 +44,9 @@ func (service *SercviceWords) UpdateState(words *models.StatesToUpdate, userId s
 func (service *SercviceWords) ValidateToken(user *models.User) (error) {
 	token, err := jwt.ParseWithClaims(user.Jwt, &models.MyJwtClaims{}, func(t *jwt.Token) (interface{}, error) {return []byte(service.config.JWTString), nil})
 	if err != nil {
-		service.logger.Warn().Msg(err.Error())
 		return errors.New("invalid token")
 	}
-	claims, ok := token.Claims.(models.MyJwtClaims)
+	claims, ok := token.Claims.(*models.MyJwtClaims)
 	if !ok || !token.Valid {
 		return errors.New("invalid token")
 	}

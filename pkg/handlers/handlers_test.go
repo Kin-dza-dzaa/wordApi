@@ -43,7 +43,7 @@ func (suite *TestSuite) TestGetWords() {
 	var testSlice []testStruct = []testStruct{
 		{
 			expectedError: false,
-			message: "words're sent",
+			message: "words were sent",
 		},
 		{
 			expectedError: true,
@@ -62,8 +62,7 @@ func (suite *TestSuite) TestGetWords() {
 			suite.Equal(v.message, result.Message)
 		} else {
 			r := httptest.NewRequest("GET", "/words", nil)
-			ctx := context.WithValue(r.Context(), KeyForToken("user_id"), suite.userId.String())
-			r = r.WithContext(ctx)
+			r = suite.addTocontext(r)
 			w := httptest.NewRecorder()
 			suite.serviceMocks.On("GetWords", suite.userId.String()).Return(&models.WordsGet{}, nil).Once()
 			suite.handlers.GetWordsHandler().ServeHTTP(w, r)
