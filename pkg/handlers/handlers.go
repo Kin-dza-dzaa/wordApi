@@ -1,7 +1,11 @@
 package handlers
 
 import (
-	"github.com/Kin-dza-dzaa/wordApi/pkg/servise"
+	"strings"
+
+	config "github.com/Kin-dza-dzaa/wordApi/configs"
+	"github.com/Kin-dza-dzaa/wordApi/internal/apierror"
+	service "github.com/Kin-dza-dzaa/wordApi/pkg/servise"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 )
@@ -10,33 +14,34 @@ type KeyForToken string
 
 type Handlers struct {
 	StopHTTPServerChan chan bool
-	service service.Service
-	Router  *mux.Router
-	Cors    *cors.Cors
+	service            service.Service
+	Router             *mux.Router
+	Cors               *cors.Cors
+	config             *config.Config
+	ApiError           *apierror.ApiError
 }
 
-func (h *Handlers) InitilizeHandlers() {
-	h.StopHTTPServerChan = make(chan bool)
-	h.Cors = cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"},
+func NewHandlers(service service.Service, config *config.Config, ApiError *apierror.ApiError) *Handlers {
+	handlers := new(Handlers)
+	handlers.config = config
+	handlers.ApiError = ApiError
+	handlers.service = service
+	handlers.StopHTTPServerChan = make(chan bool)
+	handlers.Cors = cors.New(cors.Options{
+		AllowedOrigins:   strings.Split(handlers.config.AllowedOrigns, ","),
 		AllowCredentials: true,
 		AllowedHeaders:   []string{"User-Agent", "Content-type"},
 		MaxAge:           5,
 		AllowedMethods:   []string{"POST", "GET", "PUT", "DELETE", "OPTIONS"},
 	})
-	h.Router = mux.NewRouter()
-		words := h.Router.PathPrefix("/words").Subrouter()
-		words.Handle("", h.GetWordsHandler()).Methods("GET")
-		words.Handle("", h.DeleteWordHandler()).Methods("DELETE")
-		words.Handle("", h.UpdateWordHandler()).Methods("PUT")
-		words.Handle("", h.AddWordsHandler()).Methods("POST")
-		words.Handle("/state", h.UpdateStateHandler()).Methods("PUT")
-	
-	h.Router.Use(h.LoginMiddlware())
-}
+	handlers.Router = mux.NewRouter()
+	words := handlers.Router.PathPrefix("/words").Subrouter()
+	words.Handle("", handlers.ApiError.Middleware(handlers.GetWordsHandler())).Methods("GET")
+	words.Handle("", handlers.ApiError.Middleware(handlers.DeleteWordHandler())).Methods("DELETE")
+	words.Handle("", handlers.ApiError.Middleware(handlers.UpdateWordHandler())).Methods("PUT")
+	words.Handle("", handlers.ApiError.Middleware(handlers.AddWordsHandler())).Methods("POST")
+	words.Handle("/state", handlers.ApiError.Middleware(handlers.UpdateStateHandler())).Methods("PUT")
 
-func NewHandlers(service service.Service) *Handlers {
-	return &Handlers{
-		service: service,
-	}
+	handlers.Router.Use(handlers.LoginMiddleware())
+	return handlers
 }

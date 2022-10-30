@@ -9,7 +9,12 @@ import (
 	"net/http"
 	"sync"
 	config "github.com/Kin-dza-dzaa/wordApi/configs"
+	"github.com/Kin-dza-dzaa/wordApi/internal/apierror"
 	"github.com/Kin-dza-dzaa/wordApi/internal/models"
+)
+
+var (
+	ErrUpdateFailed = errors.New("bad word")
 )
 
 func getExamples(translateData []interface{}, tranlationPtr *models.Translation) {
@@ -170,7 +175,7 @@ func unmarshalJsonTwice(rawJson []byte) ([]interface{}, error) {
 	return words, nil
 }
 
-func PostReq(word, sourceLanguage, destinationLanguage string, config *config.Config) ([]byte, error) {
+func postReq(word, sourceLanguage, destinationLanguage string, config *config.Config) ([]byte, error) {
 	var slice [][][]interface{} = [][][]interface{}{{{"MkEWBc", fmt.Sprintf(`[["%s","%s","%s",true],[null]]`, word, sourceLanguage, destinationLanguage), nil, "generic"}}}
 	data, err := json.Marshal(slice)
 	if err != nil {
@@ -200,9 +205,12 @@ func PostReq(word, sourceLanguage, destinationLanguage string, config *config.Co
 	return acceptedJson, nil
 }
 
-func GetTranlations(word, sourceLanguage, destinationLanguage string, config *config.Config, channelJson chan *models.Translation, channelBadWords chan string, wg *sync.WaitGroup, wordToAdd *models.WordToAdd) {
+func GetTranlations(word string, transData *models.Translation, sourceLanguage, destinationLanguage string, config *config.Config, channelBadWords chan string, wg *sync.WaitGroup) {
+	// DON'T USE WITHOUT Sync.WaitGroup in gorutine 
+	// also keep in mind that you've to work ONLY with one slice element per gorutine
+	// it thread safe only if two requirements above are accomplished
 	defer wg.Done()
-	rawJson, err := PostReq(word, sourceLanguage, destinationLanguage, config)
+	rawJson, err := postReq(word, sourceLanguage, destinationLanguage, config)
 	if err != nil {
 		channelBadWords <- word
 		return 
@@ -217,5 +225,22 @@ func GetTranlations(word, sourceLanguage, destinationLanguage string, config *co
 		channelBadWords <- word
 		return 
 	}
-	channelJson <- translation
+	*transData = *translation
+}
+
+func GetTranlationsUpdate(word string, transData *models.Translation, sourceLanguage, destinationLanguage string, config *config.Config) error {
+	rawJson, err := postReq(word, sourceLanguage, destinationLanguage, config)
+	if err != nil {
+		return apierror.NewResponse("error", ErrUpdateFailed.Error(), http.StatusBadRequest)
+	}
+	unmarshalledJson, err := unmarshalJsonTwice(rawJson)
+	if err != nil {
+		return apierror.NewResponse("error", ErrUpdateFailed.Error(), http.StatusBadRequest)
+	}
+	translation, err := getJson(unmarshalledJson, sourceLanguage, destinationLanguage, word)
+	if err != nil {
+		return apierror.NewResponse("error", ErrUpdateFailed.Error(), http.StatusBadRequest)
+	}
+	*transData = *translation
+	return nil
 }

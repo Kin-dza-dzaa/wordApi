@@ -4,137 +4,121 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+
+	"github.com/Kin-dza-dzaa/wordApi/internal/apierror"
 	"github.com/Kin-dza-dzaa/wordApi/internal/models"
 )
 
-func (handlers *Handlers) AddWordsHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var wordsModel models.WordsToAdd
-		if err := handlers.customUnmarshall(r, &wordsModel); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": `expected ojbect: {"words": [{"word": string, "state": int, "collection_name": string}, ...]}`})
-			return
+var (
+	ErrAuthorizationFailed = errors.New("unauthorized")
+	ErrUnmarshalFailed     = errors.New("unmarshall failed")
+)
+
+func (handlers *Handlers) AddWordsHandler() apierror.HttpErrHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		wordsModel := new(models.WordsToAdd)
+		if err := json.NewDecoder(r.Body).Decode(wordsModel); err != nil {
+			return apierror.NewResponse("error", ErrUnmarshalFailed.Error(), http.StatusBadRequest)
 		}
 		userId, ok := r.Context().Value(KeyForToken(KeyForToken("user_id"))).(string)
 		if !ok {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "invalid token"})
-			return
+			return apierror.NewResponse("error", ErrAuthorizationFailed.Error(), http.StatusUnauthorized)
+
 		}
-		badWords := handlers.service.AddWords(&wordsModel, userId)
-		w.WriteHeader(http.StatusOK)
+		badWords, err := handlers.service.AddWords(r.Context(), *wordsModel, userId)
+		if err != nil {
+			return err
+		}
 		if len(badWords) != 0 {
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message":"some words weren't added", "bad_words": badWords})
-			return
+			sliceOfBadWords := make([]string, 0, len(badWords))
+			for i := range badWords {
+				sliceOfBadWords = append(sliceOfBadWords, i)
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": "some words weren't added", "bad_words": sliceOfBadWords})
+			w.WriteHeader(http.StatusOK)
+			return nil
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": "words were added"})
-	})
+		w.WriteHeader(http.StatusOK)
+		return nil
+	}
 }
 
-func (handlers *Handlers) GetWordsHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func (handlers *Handlers) GetWordsHandler() apierror.HttpErrHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		userId, ok := r.Context().Value(KeyForToken("user_id")).(string)
 		if !ok {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "invalid token"})
-			return
+			return apierror.NewResponse("error", ErrAuthorizationFailed.Error(), http.StatusUnauthorized)
 		}
-		words, err := handlers.service.GetWords(userId)
+		
+		wordsSlice := make([]models.Word, 0, 100)
+		words := models.Words{
+			Words: &wordsSlice,
+		}
+		
+		err := handlers.service.GetWords(r.Context(), words, userId)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": err.Error()})
-			return
+			return err
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "response": words, "message": "words were sent"})
 		w.WriteHeader(http.StatusOK)
-	})
+		return nil
+	}
 }
 
-func (handlers *Handlers) UpdateWordHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var wordsModel models.WordToUpdate
-		if err := handlers.customUnmarshall(r, &wordsModel); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": `expected object: {"old_word": string, "new_word": string, "collection_name": string}`})
-			return
+func (handlers *Handlers) UpdateWordHandler() apierror.HttpErrHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		wordsModel := new(models.WordToUpdate)
+		if err := json.NewDecoder(r.Body).Decode(wordsModel); err != nil {
+			return apierror.NewResponse("error", ErrUnmarshalFailed.Error(), http.StatusBadRequest)
 		}
 		userId, ok := r.Context().Value(KeyForToken("user_id")).(string)
 		if !ok {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "invalid token"})
-			return
+			return apierror.NewResponse("error", ErrAuthorizationFailed.Error(), http.StatusUnauthorized)
 		}
-		if err := handlers.service.UpdateWord(&wordsModel, userId); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": err.Error()})
-			return
+		if err := handlers.service.UpdateWord(r.Context(), *wordsModel, userId); err != nil {
+			return err
 		}
 		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": wordsModel.OldWord + " was updated to " + wordsModel.NewWord})
 		w.WriteHeader(http.StatusOK)
-	})
+		return nil
+	}
 }
 
-func (handlers *Handlers) DeleteWordHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var wordsModel models.WordsToDelete
-		if err := handlers.customUnmarshall(r, &wordsModel); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": `expected object: {"words": [{"collection_name": string, "word": string}...]}`})
-			return
+func (handlers *Handlers) DeleteWordHandler() apierror.HttpErrHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		wordsModel := new(models.WordsToDelete)
+		if err := json.NewDecoder(r.Body).Decode(wordsModel); err != nil {
+			return apierror.NewResponse("error", ErrUnmarshalFailed.Error(), http.StatusBadRequest)
 		}
 		userId, ok := r.Context().Value(KeyForToken("user_id")).(string)
 		if !ok {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "invalid token"})
-			return
+			return apierror.NewResponse("error", ErrAuthorizationFailed.Error(), http.StatusUnauthorized)
 		}
-		handlers.service.DeleteWords(&wordsModel, userId)
-		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": "words were delted"})
+		if err := handlers.service.DeleteWords(r.Context(), *wordsModel, userId); err != nil {
+			return err
+		}
+		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": "words were deleted"})
 		w.WriteHeader(http.StatusOK)
-	})
+		return nil
+	}
 }
 
-func (handlers *Handlers) UpdateStateHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var wordsModel models.StatesToUpdate
-		if err := handlers.customUnmarshall(r, &wordsModel); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": `expected object: {"collection_name": string, "words": [{"word": string, "new_state": number}]}`})
-			return
+func (handlers *Handlers) UpdateStateHandler() apierror.HttpErrHandler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		wordsModel := new(models.StatesToUpdate)
+		if err := json.NewDecoder(r.Body).Decode(wordsModel); err != nil {
+			return apierror.NewResponse("error", ErrUnmarshalFailed.Error(), http.StatusBadRequest)
 		}
 		userId, ok := r.Context().Value(KeyForToken("user_id")).(string)
 		if !ok {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"result": "error", "message": "invalid token"})
-			return
+			return apierror.NewResponse("error", ErrAuthorizationFailed.Error(), http.StatusUnauthorized)
 		}
-		handlers.service.UpdateState(&wordsModel, userId)
+		if err := handlers.service.UpdateState(r.Context(), *wordsModel, userId); err != nil {
+			return err
+		}
 		json.NewEncoder(w).Encode(map[string]interface{}{"result": "ok", "message": "words were updated"})
 		w.WriteHeader(http.StatusOK)
-	})
-}
-
-func (hanlders *Handlers) customUnmarshall(r *http.Request, target interface{}) error {
-	if err := json.NewDecoder(r.Body).Decode(target); err != nil {
-		return err
+		return nil
 	}
-	switch v := target.(type) {
-		case *models.WordsToAdd:
-			if v.Words == nil {
-				return errors.New("")
-			}
-		case *models.WordsToDelete:
-			if v.Words == nil {
-				return errors.New("")
-			}
-		case *models.StatesToUpdate:
-			if v.Words == nil {
-				return errors.New("")
-			}		
-		case *models.WordToUpdate:
-			break
-		default:
-			return errors.New("")
-	}
-	return nil
 }

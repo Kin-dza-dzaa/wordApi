@@ -3,183 +3,141 @@ package repositories
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
-	"sync"
-	"time"
-	config "github.com/Kin-dza-dzaa/wordApi/configs"
-	external "github.com/Kin-dza-dzaa/wordApi/internal/external_call"
 	"github.com/Kin-dza-dzaa/wordApi/internal/models"
-	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/rs/zerolog"
-	"golang.org/x/exp/slices"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4"
 )
 
 const (
-	AddWordQuery 		 = "INSERT INTO user_collection(user_id, word_id, state, collection_name, time_of_last_repeating) VALUES($1, (SELECT id FROM words WHERE word = $2), 0, $3, $4);"
-	GetWodsQuery	 	 = "SELECT words.word, user_collection.state, user_collection.collection_name, words.trans_data, user_collection.time_of_last_repeating FROM words INNER JOIN user_collection ON words.id = user_collection.word_id WHERE user_collection.user_id = $1;"
-	IfDbHasWordQuery	 = "SELECT EXISTS(SELECT word FROM words WHERE word = $1);"
-	IfUserHasWordQuery	 = "SELECT EXISTS(SELECT * FROM user_collection WHERE user_id = $1 AND word_id = (SELECT id FROM words WHERE word = $2));"
-	InsertWordDataQuery  = "INSERT INTO words(word, trans_data) VALUES ($1, $2);"
-	UpdateWordQuery	 	 = "UPDATE user_collection SET word_id = (SELECT id FROM words WHERE word = $1), state = 0, time_of_last_repeating = $2 WHERE user_id = $3 AND word_id = (SELECT id FROM words WHERE word = $4) AND collection_name = $5;"
-	DeleteWordQuery	 	 = "DELETE FROM user_collection WHERE word_id = (SELECT id FROM words WHERE word = $1) AND user_id = $2 AND collection_name = $3;"
-	UpdateStateQuery	 = "UPDATE user_collection SET state = $1, time_of_last_repeating = $2 WHERE user_id = $3 AND word_id = (SELECT id FROM words WHERE word = $4) AND collection_name = $5;"
+	queryAddWordToUser  = "INSERT INTO user_collection(user_id, word, state, collection_name, time_of_last_repeating) VALUES($1, $2, 0, $3, $4);"
+	queryGetWords       = "SELECT user_collection.word, user_collection.state, user_collection.collection_name, words.trans_data, user_collection.time_of_last_repeating FROM user_collection INNER JOIN words ON words.word = user_collection.word WHERE user_collection.user_id = $1;"
+	queryIfDbHasWord    = "SELECT EXISTS(SELECT word FROM words WHERE word = $1);"
+	queryIfUserHasWord  = "SELECT EXISTS(SELECT * FROM user_collection WHERE user_id = $1 AND word = $2 AND collection_name = $3);"
+	queryInsertWordData = "INSERT INTO words(word, trans_data) VALUES ($1, $2);"
+	queryUpdateWord     = "UPDATE user_collection SET word = $1, state = 0, time_of_last_repeating = $2 WHERE user_id = $3 AND word = $4 AND collection_name = $5;"
+	queryDeleteWord     = "DELETE FROM user_collection WHERE word = $1 AND user_id = $2 AND collection_name = $3;"
+	queryUpdateState    = "UPDATE user_collection SET state = $1, time_of_last_repeating = $2 WHERE user_id = $3 AND word = $4 AND collection_name = $5;"
 )
 
 type RepositoryWord struct {
-	pool *pgxpool.Pool
-	config *config.Config
-	logger *zerolog.Logger
+	pool   PgxPool
 }
 
-func (repository *RepositoryWord) AddWords(wordsToAdd *models.WordsToAdd, userId string) []string {
-	var badWords []string
-	words := repository.getAllTranslations(wordsToAdd.Words, &badWords, userId)
-	repository.addTranslations(words, &badWords, userId)
-    repository.addWordsToUser(&badWords, wordsToAdd, userId)
-	return badWords
-}
-
-func (repository *RepositoryWord) getAllTranslations(wordsToAdd []models.WordToAdd, badWords *[]string, userId string) []*models.Translation {
-	wg := new(sync.WaitGroup)
-	channelBadWords := make(chan string, len(wordsToAdd))
-	channelJson := make(chan *models.Translation, len(wordsToAdd))
-	for _, v := range wordsToAdd {
-		exists, err := repository.ifWordInDb(v.Word)
-		if err != nil {
-			*badWords = append(*badWords, v.Word)
-			repository.logger.Warn().Msg(err.Error())
-		}
-		if !exists {
-			wg.Add(1)
-			go external.GetTranlations(v.Word, "en", "ru", repository.config, channelJson, channelBadWords, wg, &v)
-		}
-	}
-	wg.Wait()
-	close(channelJson)
-	close(channelBadWords)
-	for v := range channelBadWords {
-		*badWords = append(*badWords, v)
-	}
-	var words []*models.Translation
-	for v := range channelJson {
-		words = append(words, v)
-	}
-	return words
-}
-
-func (repository *RepositoryWord) ifWordInDb(word string) (bool, error) {
-	var result bool
-	if err := repository.pool.QueryRow(context.TODO(), IfDbHasWordQuery, word).Scan(&result); err != nil {
-		repository.logger.Warn().Msg(err.Error())
-		return result, err
-	}
-	return result, nil
-}
-
-func (repository *RepositoryWord) addTranslations(words []*models.Translation, badWords *[]string, userId string) {
-	for _, v := range words {
-		bytesJson, err := json.Marshal(v)
-		if err != nil {
-			*badWords = append(*badWords, v.Word)
-			repository.logger.Warn().Msg(err.Error())
-			continue
-		}
-		if _, err := repository.pool.Exec(context.TODO(), InsertWordDataQuery, v.Word, string(bytesJson)); err != nil {
-			*badWords = append(*badWords, v.Word)
-			repository.logger.Warn().Msg(err.Error())
-			continue
-		}
-	}
-}
-
-func (repository *RepositoryWord) addWordsToUser(badWords *[]string, wordsToAdd *models.WordsToAdd, userId string) {
-	for _, v := range wordsToAdd.Words {
-		if !slices.Contains(*badWords, v.Word) {
-			if _, err := repository.pool.Exec(context.TODO(), AddWordQuery, userId, v.Word, v.CollectionName, v.TimeOfLastRepeating); err != nil {
-				*badWords = append(*badWords, v.Word)
-			}
-		}
-	}
-}
-
-func (repository *RepositoryWord) GetWords(userId string) (*models.WordsGet, error) {
-	rows, err := repository.pool.Query(context.TODO(), GetWodsQuery, userId)
-	if err != nil {
-		repository.logger.Error().Msg(err.Error())
-		return nil, errors.New("internal error")
-	}
-	defer rows.Close()
-	var WordsGet models.WordsGet
-	for rows.Next() {
-		var tempWord models.Word
-		if err := rows.Scan(&tempWord.Word, &tempWord.State, &tempWord.CollectionName, &tempWord.TransData, &tempWord.TimeOfLastRepeating); err != nil {
-			repository.logger.Error().Msg(err.Error())
-			return nil, errors.New("internal error")
-		}
-		WordsGet.Words = append(WordsGet.Words, tempWord)
-	}
-	return &WordsGet, nil
-}
-
-func (repository *RepositoryWord) UpdateWord(wordsToUpdate *models.WordToUpdate, userId string) error {
-	var ifUserHasOldWord, ifUserHasNewWord bool
-	ifUserHasNewWord, err := repository.ifUserHasWord(wordsToUpdate.NewWord, userId)
-	if err != nil {
+func (repository *RepositoryWord) IfWordInDb(ctx context.Context, word string, result *bool) error {
+	if err := repository.pool.QueryRow(ctx, queryIfDbHasWord, word).Scan(result); err != nil {
 		return err
-	}
-	ifUserHasOldWord, err = repository.ifUserHasWord(wordsToUpdate.OldWord, userId)
-	if err != nil {
-		return err
-	}
-	if ifUserHasNewWord {
-		return fmt.Errorf("you already have word %v", wordsToUpdate.NewWord)
-	}
-	if ifUserHasOldWord {
-		exists, err := repository.ifWordInDb(wordsToUpdate.NewWord)
-		if err != nil {
-			repository.logger.Error().Msg(err.Error())
-			return errors.New("internal error")
-		}
-		if !exists {
-			words := repository.getAllTranslations([]models.WordToAdd{{Word: wordsToUpdate.NewWord, CollectionName: wordsToUpdate.CollectionName, TimeOfLastRepeating: wordsToUpdate.TimeOfLastRepeating}}, &[]string{}, userId)
-			repository.addTranslations(words, &[]string{}, userId)
-		}
-		if response, err := repository.pool.Exec(context.TODO(), UpdateWordQuery, wordsToUpdate.NewWord, wordsToUpdate.TimeOfLastRepeating, userId, wordsToUpdate.OldWord, wordsToUpdate.CollectionName); err != nil || response.RowsAffected() == 0 {
-			return errors.New("update was unsuccessful")
-		}
-	} else {
-		return fmt.Errorf("you don't have word %v", wordsToUpdate.OldWord)
 	}
 	return nil
 }
 
-func (repository *RepositoryWord) ifUserHasWord(word string, userId string) (bool, error) {
-	var result bool
-	err := repository.pool.QueryRow(context.TODO(), IfUserHasWordQuery, userId, word).Scan(&result)
+func (repositry *RepositoryWord) IfUserHasWord(ctx context.Context, word string, collectionName string, result *bool, userId string) error {
+	if err := repositry.pool.QueryRow(ctx, queryIfUserHasWord, userId, word, collectionName).Scan(result); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (repository *RepositoryWord) AddWords(ctx context.Context, words models.WordsToAdd, badwords map[string]string, userId string) error {
+	return repository.pool.BeginFunc(ctx, func(tx pgx.Tx) error {
+		for _, v := range words.Words {
+			_, ok := badwords[v.Word]
+			if v.TransData != nil && !ok {
+				bytesJson, err := json.Marshal(v.TransData)
+				if err != nil {
+					return err
+				}
+				if _, err := tx.Exec(ctx, queryInsertWordData, v.Word, string(bytesJson)); err != nil {
+					return err
+				}
+				if _, err := tx.Exec(ctx, queryAddWordToUser, userId, v.Word, v.CollectionName, v.TimeOfLastRepeating); err != nil {
+					return err
+				}
+			} else {
+				if !ok {
+					if _, err := tx.Exec(ctx, queryAddWordToUser, userId, v.Word, v.CollectionName, v.TimeOfLastRepeating); err != nil {
+						continue
+					}
+				}
+			}
+		}
+		return nil
+	})
+}
+
+func (repository *RepositoryWord) GetWords(ctx context.Context, words models.Words, userId string) error {
+	rows, err := repository.pool.Query(ctx, queryGetWords, userId)
 	if err != nil {
-		repository.logger.Error().Msg(err.Error())
-		return result, errors.New("internal error")
+		return err
 	}
-	return result, nil
+	defer rows.Close()
+	for rows.Next() {
+		var tempWord models.Word
+		if err := rows.Scan(&tempWord.Word, &tempWord.State, &tempWord.CollectionName, &tempWord.TransData, &tempWord.TimeOfLastRepeating); err != nil {
+			return err
+		}
+		*words.Words = append((*words.Words), tempWord)
+	}
+	return nil
 }
 
-func (repository *RepositoryWord) DeleteWords(words *models.WordsToDelete, userId string) {
-	for _, v := range words.Words {
-		repository.pool.Exec(context.TODO(), DeleteWordQuery, v.Word, userId, v.CollectionName)
-	}
+func (repository *RepositoryWord) UpdateWord(ctx context.Context, wordToUpdate models.WordToUpdate, userId string) error {
+	return repository.pool.BeginFunc(ctx, func(tx pgx.Tx) error {
+		if wordToUpdate.TransData != nil {
+			bytesJson, err := json.Marshal(wordToUpdate.TransData)
+			if err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, queryInsertWordData, wordToUpdate.NewWord, string(bytesJson)); err != nil {
+				return err
+			}
+		}
+
+		_, err := tx.Exec(ctx, queryUpdateWord, wordToUpdate.NewWord, wordToUpdate.TimeOfLastRepeating, userId, wordToUpdate.OldWord, wordToUpdate.CollectionName)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
-func (repository *RepositoryWord) UpdateState(words *models.StatesToUpdate, userId string) {
-	for _, v := range words.Words {
-		repository.pool.Exec(context.TODO(), UpdateStateQuery, v.NewState, time.Now().UTC(), userId, v.Word, words.CollectionName)
-	}
+func (repository *RepositoryWord) DeleteWords(ctx context.Context, words models.WordsToDelete, userId string) error {
+	return repository.pool.BeginFunc(ctx, func(tx pgx.Tx) error {
+		for _, v := range words.Words {
+			if _, err := tx.Exec(ctx, queryDeleteWord, v.Word, userId, v.CollectionName); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
-func NewRepositoryWord(pool *pgxpool.Pool, logger *zerolog.Logger, config *config.Config) *RepositoryWord {
+func (repository *RepositoryWord) UpdateState(ctx context.Context, words models.StatesToUpdate, userId string) error {
+	return repository.pool.BeginFunc(ctx, func(tx pgx.Tx) error {
+		for _, v := range words.Words {
+			if _, err := tx.Exec(ctx, queryUpdateState, v.NewState, v.TimeOfLastRepeating, userId, v.Word, words.CollectionName); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func NewRepositoryWord(pool PgxPool) *RepositoryWord {
 	return &RepositoryWord{
-		pool: pool,
-		config: config,
-		logger: logger,
+		pool:   pool,
 	}
+}
+
+type PgxPool interface {
+	Close()
+	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+	QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error)
+	SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
+	Begin(ctx context.Context) (pgx.Tx, error)
+	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error)
+	BeginFunc(ctx context.Context, f func(pgx.Tx) error) error
+	BeginTxFunc(ctx context.Context, txOptions pgx.TxOptions, f func(pgx.Tx) error) error
 }

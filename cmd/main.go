@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"os"
 	"time"
-	"github.com/Kin-dza-dzaa/wordApi/configs"
+
+	config "github.com/Kin-dza-dzaa/wordApi/configs"
+	"github.com/Kin-dza-dzaa/wordApi/internal/apierror"
 	"github.com/Kin-dza-dzaa/wordApi/pkg/handlers"
 	"github.com/Kin-dza-dzaa/wordApi/pkg/repositories"
-	"github.com/Kin-dza-dzaa/wordApi/pkg/servise"
+	service "github.com/Kin-dza-dzaa/wordApi/pkg/servise"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/rs/zerolog"
 )
@@ -25,13 +27,13 @@ func main() {
 		myLogger.Fatal().Msg(err.Error())
 	}
 	defer pool.Close()
-	myRepository := repositories.NewRepository(pool, &myLogger, config)
-	myService := service.NewService(myRepository, config, &myLogger)
-	myHandlers := handlers.NewHandlers(myService)
-	myHandlers.InitilizeHandlers()
+	myRepository := repositories.NewRepository(pool)
+	myService := service.NewService(myRepository, config)
+	myApiError := apierror.NewApiError(&myLogger)
+	myHandlers := handlers.NewHandlers(myService, config, myApiError)
 	srv := &http.Server{
-		Handler: myHandlers.Cors.Handler(myHandlers.Router),
-		Addr:    config.Adress,
+		Handler:      myHandlers.Cors.Handler(myHandlers.Router),
+		Addr:         config.Adress,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
