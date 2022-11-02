@@ -5,12 +5,13 @@ import (
 )
 
 type Config struct {
-	DbUrl         string `mapstructure:"DB_URL"`
-	JWTString     string `mapstructure:"SECURE_STRING"`
-	ExternalUrl   string `mapstructure:"EXTERNAL_URL"`
-	Adress        string `mapstructure:"ADRESS"`
-	AllowedOrigns string `mapstructure:"ALLOWED_ORIGINS"`
-	DbTestUrl 	  string `mapstructure:"DB_TEST_URL"`
+	DbUrl         		string `mapstructure:"DB_URL"`
+	JWTString     		string `mapstructure:"SECURE_STRING"`
+	ExternalUrl   		string `mapstructure:"EXTERNAL_URL"`
+	Adress        		string `mapstructure:"ADRESS"`
+	AllowedOrigns 		string `mapstructure:"ALLOWED_ORIGINS"`
+	DbTestUrl 	  		string `mapstructure:"DB_TEST_URL"`
+	AllowCredentials 	bool `mapstructure:"ALLOW_CREDENTIALS"`
 }
 
 func ReadConfig() (*Config, error) {

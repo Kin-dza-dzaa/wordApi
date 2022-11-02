@@ -29,8 +29,8 @@ func NewHandlers(service service.Service, config *config.Config, ApiError *apier
 	handlers.StopHTTPServerChan = make(chan bool)
 	handlers.Cors = cors.New(cors.Options{
 		AllowedOrigins:   strings.Split(handlers.config.AllowedOrigns, ","),
-		AllowCredentials: true,
-		AllowedHeaders:   []string{"User-Agent", "Content-type"},
+		AllowCredentials: config.AllowCredentials,
+		AllowedHeaders:   []string{"User-Agent", "Content-type", "X-Csrf-Token"},
 		MaxAge:           5,
 		AllowedMethods:   []string{"POST", "GET", "PUT", "DELETE", "OPTIONS"},
 	})
